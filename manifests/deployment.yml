@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "samplecenter-0221"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "samplecenter-0221"
+  template:
+    metadata:
+      labels:
+        app: "samplecenter-0221"
+    spec:
+      containers:
+        - name: "samplecenter-0221"
+          image: "test1233254.azurecr.io/samplecenter"
+          ports:
+          - containerPort: 80
