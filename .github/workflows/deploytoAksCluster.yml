@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: test1233254.azurecr.io
+        username: ${{ secrets.acr_test1233254_username }}
+        password: ${{ secrets.acr_test1233254_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/simple-web" -f  "simple-web/Dockerfile" -t test1233254.azurecr.io/samplecenter:${{ github.sha }} --label dockerfile-path=simple-web/Dockerfile
+        docker push test1233254.azurecr.io/samplecenter:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_samplecenter_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep samplesample | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace samplesample`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: samplesample
+        container-registry-url: test1233254.azurecr.io
+        container-registry-username: ${{ secrets.acr_test1233254_username }}
+        container-registry-password: ${{ secrets.acr_test1233254_password }}
+        secret-name: samplecenterdockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: samplesample
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          test1233254.azurecr.io/samplecenter:${{ github.sha }}
+        imagepullsecrets: |
+          samplecenterdockerauth
